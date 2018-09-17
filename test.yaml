@@ -1,0 +1,10 @@
+keyserver: http://127.0.0.1:8813
+keyserver_port: 8813
+access:
+  - criteria:
+      - server: {re: ".*"}
+    permissions:
+      - changeuser
+      - login
+    params:
+      - expiryhours: 24

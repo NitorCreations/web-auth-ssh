@@ -1,20 +1,37 @@
-from keygen import keygen, get_key
-from os.path import expanduser, exists, isfile 
+from os.path import expanduser, exists, isfile, sep
+from collections import OrderedDict
 import yaml
 
 HOME = expanduser("~")
 
-CONFS = [ "/etc/web-auth-ssh.conf", "C:\\Windows\\web-auth-ssh.conf", HOME + "/.web-auth-ssh"]
+CONFS = [ "/etc/web-auth-ssh.conf", "C:\\Windows\\web-auth-ssh.conf", HOME + sep + ".web-auth-ssh"]
 
-def load_config():
-    configs = {
-        "keydir": "/tmp/keyserver"
-    }
-    for conf in CONFS:
+def yaml_load(stream):
+    class OrderedLoader(yaml.SafeLoader):
+        pass
+
+    def construct_mapping(loader, node):
+        loader.flatten_mapping(node)
+        return OrderedDict(loader.construct_pairs(node))
+    OrderedLoader.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+        construct_mapping)
+
+    return yaml.load(stream, OrderedLoader)
+
+def load_config(extra_confs=[]):
+    configs = OrderedDict([
+        ("keyserver_port", "8017"),
+        ("userheader", "x-auth-name"),
+        ("groupsheader", "x-auth-groups"),
+        ("default_expiry_hours", 12)
+    ])
+    check_confs = CONFS + extra_confs
+    for conf in check_confs:
         if exists(conf) and isfile(conf):
             with open(conf) as conf_file:
                 try:
-                    configs.update(yaml.load(conf_file))
+                    configs.update(yaml_load(conf_file))
                 except IOError:
                     pass
     return configs
