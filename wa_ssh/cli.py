@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import thread
 import SimpleHTTPServer
@@ -9,7 +10,7 @@ import time
 import urllib
 from wa_ssh import load_config
 from requests import get
-from wa_ssh.utils import get_query_param, get_open_port
+from wa_ssh.utils import get_query_param, get_open_port, stdchannel_redirected
 
 KEY_RESPONSE = None
 SERVER = None
@@ -49,7 +50,8 @@ def get_privkey(extra_confs, host, username):
     Handler = KeyResponseHandler
     SERVER = SocketServer.TCPServer(("127.0.0.1", port), Handler)
     url = conf['keyserver'] + "/privkey/" + host + "/" + username + "?port=" + str(port)
-    webbrowser.open(url, new=2, autoraise=False)
+    with stdchannel_redirected(sys.stdout, os.devnull):
+        webbrowser.open(url, new=2, autoraise=False)
     try:
         SERVER.serve_forever()
     except KeyboardInterrupt:
@@ -101,8 +103,10 @@ class KeyResponseHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self._set_headers()
         if key:
             global KEY_RESPONSE
-            KEY_RESPONSE = urllib.unquote(key)
+            KEY_RESPONSE = urllib.unquote(key).replace("+RSA+PRIVATE+KEY", " RSA PRIVATE KEY")
             return privkey_response
         else:
             return None
 
+    def log_message(self, format, *args):
+        return
