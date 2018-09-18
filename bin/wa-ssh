@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 usage() {
   echo "usage: wa-ssh [-h] [-i identity_file ] [ -f config_file ] user@example.com [ ssh_arg ... ]" >&2
