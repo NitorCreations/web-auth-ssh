@@ -29,6 +29,7 @@ setup(name='web-auth-ssh',
           'console_scripts': [
               'wa-keyserver=wa_ssh.keyserver:main',
               'wa-pubkeys=wa_ssh.cli:wa_pubkeys',
+              'wa-privkey=wa_ssh.cli:wa_privkey',
               'wa-ssh=wa_ssh.cli:wa_ssh'
           ],
       },

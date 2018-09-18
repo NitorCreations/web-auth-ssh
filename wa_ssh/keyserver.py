@@ -4,12 +4,12 @@ import SimpleHTTPServer
 import BaseHTTPServer
 import SocketServer
 import socket
-import urlparse
 import urllib
 import re
 from collections import OrderedDict
 from wa_ssh import load_config
 from wa_ssh.keygen import get_key
+from wa_ssh.utils import get_query_param
 from urlparse import urlparse
 
 CONF = load_config()
@@ -21,22 +21,18 @@ def start(extra_confs=[]):
     Handler = KeyRequestHandler
     httpd = SocketServer.TCPServer(("127.0.0.1", port), Handler)
     print "serving at port", port
-    httpd.serve_forever()
-
-def get_open_port():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("",0))
-    s.listen(1)
-    port = s.getsockname()[1]
-    s.close()
-    return port
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.shutdown()
 
 class KeyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def _set_headers(self, status=200, location=None):
         self.send_response(status)
         self.send_header('Content-type', 'text/plain')
         if location:
-            print(location)
             self.send_header('Location', location)
         self.end_headers()
 
@@ -58,9 +54,12 @@ class KeyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         path = translate_path(self.path)
         if path[0] == "privkey":
             redirect_port = get_redirect_port(self.path)
-            print(str(path))
-            req_user = self.headers[CONF['userheader']]
-            req_groups = self.headers[CONF['groupsheader']].split(",")
+            req_user = None
+            req_groups = []
+            if CONF['userheader'] in self.headers:
+                req_user = self.headers[CONF['userheader']]
+            if CONF['groupsheader'] in self.headers:
+                req_groups = self.headers[CONF['groupsheader']].split(",")
             grant, parameters = grant_access(path[1], path[2], req_user, req_groups)
             if not grant:
                 self._set_headers(status=403)
@@ -68,26 +67,23 @@ class KeyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             expiry_hours = shortest_expiry(parameters)
             priv, pub = get_key(path[1], path[2], expiry_hours)
             location = "http://localhost:" + redirect_port + "/?" + urllib.urlencode({"key": priv})
-            print("Returning " + priv)
             self._set_headers(status=302, location=location)
             return None
         elif path[0] == "pubkey":
             self._set_headers()
             priv, pub = get_key(path[1], path[2], 0)
-            print("Returning " + pub)
             return pub
 
 def translate_path(path):
     url = urlparse(path)
-    print(url)
     return urllib.unquote(url.path.rstrip()).split("/")[1:]
 
 def get_redirect_port(path):
-    url = urlparse(path)
-    for param in url.query.split("&"):
-        if param.startswith("port="):
-            return param.split("=", 1)[1]
-    return "0"
+    port = get_query_param(path, "port")
+    if port:
+        return port
+    else:
+        return "0"
 
 def grant_access(host, username, req_user, req_groups):
     if 'access' not in CONF:
@@ -100,6 +96,10 @@ def grant_access(host, username, req_user, req_groups):
         if criteria_matches(policy['criteria'], host, username, req_user, req_groups):
             if "deny" in policy['permissions']:
                 return False, None
+            if req_user is None and "noauth" in policy['permissions']:
+                grant = True
+            if not req_groups and "noauth" in policy['permissions']:
+                grant = True
             if req_user == username and "login" in policy['permissions']:
                 grant = True
             if req_user != username and "changeuser" in policy['permissions']:

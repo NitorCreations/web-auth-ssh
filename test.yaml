@@ -6,5 +6,6 @@ access:
     permissions:
       - changeuser
       - login
+      - noauth
     params:
       - expiryhours: 24
