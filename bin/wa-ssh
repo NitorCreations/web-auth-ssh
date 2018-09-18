@@ -1,42 +1,22 @@
-#!/bin/bash
-
-if [ "$_ARGCOMPLETE" ]; then
-  cur=${COMP_CUR}
-  prev=${COMP_PREV}
-  if [ "$cur" = "-" ]; then
-    echo -e "-k\n-h"
-    return 0
-  fi
-  case $prev in
-    lpssh)
-      TMP=$(mktemp)
-      if ! lpass show --notes my-ssh-mappings > $TMP; then
-           echo "Could not get mapings"
-           rm -f $TMP
-           return 1
-      fi
-      compgen -W "-h -k $(cat $TMP | cut -d ":" -f1)" -- "$cur"
-      rm -f $TMP
-      ;;
-    -k)
-      compgen -W "$(lpass ls | egrep '\.rsa\W|\.pem\W' | awk -NF '/|\\ ' '{ print $2 }' | sort -u)" -- "$cur"
-      ;;
-  esac
-  exit 0
-fi
+#!/bin/bash -x
 
 usage() {
-  echo "usage: wa-ssh [-h] [-k key-name] user@example.com" >&2
+  echo "usage: wa-ssh [-h] [-i identity_file ] [ -f config_file ] user@example.com [ ssh_arg ... ]" >&2
   echo "" >&2
-  echo "Fetches key mappings from lastpass, downloads mapped keys into a local ssh-agent and starts" >&2
-  echo "an ssh session using those credentials." >&2
+  echo "Fetches a private key from a keyserver protected with web authentication such as OAuth and" >&2
+  echo "uses that to log in. The corresponding public key is then provided to the ssh server" >&2
+  echo "when it asks for it, as configured by the AuthorizedKeysCommand configuration option.">&2
   echo "" >&2
   echo "positional arguments" >&2
-  echo "  user@example.com   The user and host to match in \"my-ssh-mappings\" secure note" >&2
+  echo "  user@example.com   The user and host to match in wa-ssh configuration" >&2
   echo "                     and to log into once keys are set up." >&2
   echo "" >&2
   echo "optional arguments:" >&2
-  echo "  -k,         key name in lastpass to use if you don't want to use a mapping"  >&2
+  echo "  -i          additional identity to add for the ssh-agent session for this connection."  >&2
+  echo "              Several allowed" >&2
+  echo "  -f          Additional wa-ssh configuration file to read. Default configuration files" >&2
+  echo "              \"/etc/web-auth-ssh.conf\", \"C:\\Windows\\web-auth-ssh.conf\" and" >&2
+  echo "              \"~/.web-auth-ssh\" are read before these argument files, if readable" >&2
   echo "  -h, --help  show this help message and exit" >&2
   exit 1
 }
@@ -63,34 +43,37 @@ cleanup() {
 }
 trap cleanup EXIT
 IOTMP=$(mktemp)
-if [ "$1" = "-k" ]; then
-  while  [ "$1" = "-k" ]; do
+while [ "$1" = "-i" ] || [ "$1" = "-f" ]; do
+  if [ "$1" = "-i" ]; then
     shift
     KEY_NAMES="$KEY_NAMES $1"
     shift
-  done
-else
-  TMP=$(mktemp)
-  if ! lpass show --notes my-ssh-mappings > $TMP; then
-    echo "Failed to get mappings"
-    exit 1
+  elif [ "$1" = "-f" ]; then
+    shift
+    CONF_FILES="$CONF_FILES $1"
+    shift
   fi
-  if ! egrep "^$1:" $TMP > /dev/null; then
-    echo "$1 mapping not found"
-    exit 1
-  fi
-  KEY_NAMES=$(egrep "^$1:" $TMP | cut -d: -f2-)
-fi
+done
+
+UHOST=$1
+shift
+USER_HOST=( $(wa-user-host $UHOST -c $CONF_FILES) )
 if  ! eval "$(ssh-agent)" > $IOTMP; then
   echo "Failed to start ssh agent"
   cat $IOTMP
   exit 1
 fi
+
+if ! wa-privkey ${UHOST} -c $CONF_FILES | ssh-add - > $IOTMP 2>&1; then
+    echo "Failed to add dynamic key"
+    cat $IOTMP
+    exit 1
+fi
 for KEY_NAME in $KEY_NAMES; do
-  if ! lpass show --notes $KEY_NAME | ssh-add - > $IOTMP 2>&1; then
-    echo "Failed to add key"
+  if ! ssh-add $KEY_NAME > $IOTMP 2>&1; then
+    echo "Failed to add key $KEY_NAME"
     cat $IOTMP
     exit 1
   fi
 done
-ssh -A "$@"
+ssh -A -l "${USER_HOST[0]}" "${USER_HOST[1]}" "$@"

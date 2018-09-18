@@ -27,6 +27,8 @@ def load_config(extra_confs=[]):
         ("groupsheader", "x-auth-groups"),
         ("default_expiry_hours", 12)
     ])
+    if extra_confs is None:
+        extra_confs = []
     check_confs = CONFS + extra_confs
     for conf in check_confs:
         if exists(conf) and isfile(conf):

@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import sys
 import thread
 import SimpleHTTPServer
@@ -28,28 +29,67 @@ def wa_pubkeys():
 
 def wa_privkey():
     parser = argparse.ArgumentParser(description="Fetch private key")
-    parser.add_argument("host", help="The host that requests keys for login")
-    parser.add_argument("username", help="The user that requests keys for login")
+    parser.add_argument("user_at_host", help="The host that requests keys for login")
     parser.add_argument("-c", "--config", help="Configuration file", nargs="*")
     args = parser.parse_args()
-    key = get_privkey(args.config, args.host, args.username)
+    user, host, keyserver = map_user_at_host(args.config, args.user_at_host)
+    key = get_privkey(args.config, host, user, keyserver)
     if key:
         print key
     else:
         print "No response"
         sys.exit(1)
 
-def wa_ssh():
-    parser = argparse.ArgumentParser(description="Login with an ssh key gotten through a web login")
-    parser.add_argument("-i", "--identity", help="Additional ssh identities to add to ssh agent of the session", nargs="*")
+def wa_user_host():
+    parser = argparse.ArgumentParser(description="Get mapping for user and host from wa-ssh configuration files")
+    parser.add_argument("user_at_host", help="A pointer to a configuration or a direct reference in the form user@hostname")
+    parser.add_argument("-c", "--config", help="Configuration file", nargs="*")
+    args = parser.parse_args()
+    mapped_user, mapped_host, _ = map_user_at_host(args.config, args.user_at_host)
+    print mapped_user + " " + mapped_host
 
-def get_privkey(extra_confs, host, username):
-    global SERVER
+def map_user_at_host(extra_confs, user_at_host):
+    pattern = re.compile("([^@]*)@(.*)")
+    match = pattern.match(user_at_host)
+    if match:
+        user = match.group(1)
+        host = match.group(2)
+    else:
+        user = None
+        host = user_at_host
+    return map_user_host(extra_confs, user, host)
+
+def map_user_host(extra_confs, user, host):
     conf = load_config(extra_confs=extra_confs)
+    mapped_host = None
+    mapped_user = None
+    keyserver = conf["keyserver"]
+    if "hosts" in conf:
+        for conf_host, host_conf in conf["hosts"]:
+            matches = False
+            try:
+                matches = re.compile(conf_host).match(host) is not None
+            except:
+                pass
+            if conf_host == host or matches:
+                if "HostName" in host_conf:
+                    mapped_host = host_conf['HostName']
+                if not user and "User" in host_conf:
+                    mapped_user = host_conf["User"]
+                if "KeyServer" in host_conf:
+                    keyserver = host_conf["KeyServer"]
+    if not mapped_user:
+        mapped_user = user
+    if not mapped_host:
+        mapped_host = host
+    return mapped_user, mapped_host, keyserver
+
+def get_privkey(extra_confs, host, username, keyserver):
+    global SERVER
     port = get_open_port()
     Handler = KeyResponseHandler
     SERVER = SocketServer.TCPServer(("127.0.0.1", port), Handler)
-    url = conf['keyserver'] + "/privkey/" + host + "/" + username + "?port=" + str(port)
+    url = keyserver + "/privkey/" + host + "/" + username + "?port=" + str(port)
     with stdchannel_redirected(sys.stdout, os.devnull):
         webbrowser.open(url, new=2, autoraise=False)
     try:
