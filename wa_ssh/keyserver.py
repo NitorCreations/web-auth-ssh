@@ -1,16 +1,19 @@
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
 import argparse
 import os
-import SimpleHTTPServer
-import BaseHTTPServer
-import SocketServer
+import http.server
+import http.server
+import socketserver
 import socket
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import re
 from collections import OrderedDict
 from wa_ssh import load_config
 from wa_ssh.keygen import get_key
 from wa_ssh.utils import get_query_param
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 CONF = load_config()
 
@@ -19,8 +22,8 @@ def start(extra_confs=[]):
     CONF = load_config(extra_confs=extra_confs)
     port = int(CONF['keyserver_port'])
     Handler = KeyRequestHandler
-    httpd = SocketServer.TCPServer(("127.0.0.1", port), Handler)
-    print "serving at port", port
+    httpd = socketserver.TCPServer(("127.0.0.1", port), Handler)
+    print("serving at port", port)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -28,7 +31,7 @@ def start(extra_confs=[]):
     finally:
         httpd.shutdown()
 
-class KeyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class KeyRequestHandler(http.server.BaseHTTPRequestHandler):
     def _set_headers(self, status=200, location=None):
         self.send_response(status)
         self.send_header('Content-type', 'text/plain')
@@ -66,7 +69,7 @@ class KeyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 return None
             expiry_hours = shortest_expiry(parameters)
             priv, pub = get_key(path[1], path[2], expiry_hours)
-            location = "http://localhost:" + redirect_port + "/?" + urllib.urlencode({"key": priv})
+            location = "http://localhost:" + redirect_port + "/?" + urllib.parse.urlencode({"key": priv})
             self._set_headers(status=302, location=location)
             return None
         elif path[0] == "pubkey":
@@ -76,7 +79,7 @@ class KeyRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
 def translate_path(path):
     url = urlparse(path)
-    return urllib.unquote(url.path.rstrip()).split("/")[1:]
+    return urllib.parse.unquote(url.path.rstrip()).split("/")[1:]
 
 def get_redirect_port(path):
     port = get_query_param(path, "port")

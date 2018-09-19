@@ -1,14 +1,18 @@
+from __future__ import print_function
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 import argparse
 import os
 import re
 import sys
-import thread
-import SimpleHTTPServer
-import BaseHTTPServer
-import SocketServer
+import _thread
+import http.server
+import http.server
+import socketserver
 import webbrowser
 import time
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from wa_ssh import load_config
 from requests import get
 from wa_ssh.utils import get_query_param, get_open_port, stdchannel_redirected
@@ -25,7 +29,7 @@ def wa_pubkeys():
     conf = load_config(extra_confs=args.config)
     url = conf['keyserver'] + "/pubkey/" + args.host + "/" + args.username
     resp = get(url)
-    print resp.content
+    print(resp.content)
 
 def wa_privkey():
     parser = argparse.ArgumentParser(description="Fetch private key")
@@ -35,9 +39,9 @@ def wa_privkey():
     user, host, keyserver = map_user_at_host(args.config, args.user_at_host)
     key = get_privkey(args.config, host, user, keyserver)
     if key:
-        print key
+        print(key)
     else:
-        print "No response"
+        print("No response")
         sys.exit(1)
 
 def wa_user_host():
@@ -46,7 +50,7 @@ def wa_user_host():
     parser.add_argument("-c", "--config", help="Configuration file", nargs="*")
     args = parser.parse_args()
     mapped_user, mapped_host, _ = map_user_at_host(args.config, args.user_at_host)
-    print mapped_user + " " + mapped_host
+    print(mapped_user + " " + mapped_host)
 
 def map_user_at_host(extra_confs, user_at_host):
     pattern = re.compile("([^@]*)@(.*)")
@@ -88,7 +92,7 @@ def get_privkey(extra_confs, host, username, keyserver):
     global SERVER
     port = get_open_port()
     Handler = KeyResponseHandler
-    SERVER = SocketServer.TCPServer(("127.0.0.1", port), Handler)
+    SERVER = socketserver.TCPServer(("127.0.0.1", port), Handler)
     url = keyserver + "/privkey/" + host + "/" + username + "?port=" + str(port)
     with stdchannel_redirected(sys.stdout, os.devnull):
         webbrowser.open(url, new=2, autoraise=False)
@@ -114,7 +118,7 @@ privkey_response = """
   </body>
 </html>"""
 
-class KeyResponseHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class KeyResponseHandler(http.server.BaseHTTPRequestHandler):
     def _set_headers(self, status=200):
         self.send_response(status)
         self.send_header('Content-type', 'text/html')
@@ -132,7 +136,7 @@ class KeyResponseHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             global SERVER
             def stop_server(server):
                 server.shutdown()
-            thread.start_new_thread(stop_server, (SERVER,))
+            _thread.start_new_thread(stop_server, (SERVER,))
 
     def do_HEAD(self):
         """Serve a HEAD request."""
@@ -143,7 +147,7 @@ class KeyResponseHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self._set_headers()
         if key:
             global KEY_RESPONSE
-            KEY_RESPONSE = urllib.unquote(key).replace("+RSA+PRIVATE+KEY", " RSA PRIVATE KEY")
+            KEY_RESPONSE = urllib.parse.unquote(key).replace("+RSA+PRIVATE+KEY", " RSA PRIVATE KEY")
             return privkey_response
         else:
             return None
