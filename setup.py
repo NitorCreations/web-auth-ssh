@@ -15,10 +15,10 @@ import sys
 from setuptools import setup
 
 setup(name='web-auth-ssh',
-      version='0.5',
+      version='0.6',
       description='Tools for authenticating to ssh via keys given out with a web service',
       url='http://github.com/NitorCreations/web-auth-ssh',
-      download_url='https://github.com/NitorCreations/web-auth-ssh/tarball/0.5',
+      download_url='https://github.com/NitorCreations/web-auth-ssh/tarball/0.6',
       author='Pasi Niemi',
       author_email='pasi.niemi@nitor.com',
       license='Apache 2.0',
