@@ -1,9 +1,16 @@
-FROM nitor/nitor-backend:1.15
+FROM python:3.6-alpine as base
 
-USER root
-RUN apt-get update && apt-get install -y python3-pip && \
-    rm -rf /var/lib/apt/lists/* && \
-    pip3 install --no-cache-dir nitor-vault
-RUN pip3 install --no-cache-dir web-auth-ssh==0.5
+FROM base as deps
 
-USER user
+RUN apk add openssl libffi
+
+FROM deps as builder
+
+RUN apk add build-base libffi-dev openssl-dev
+RUN pip install --no-cache-dir --install-option="--prefix=/pyinstall" web-auth-ssh==0.5
+
+FROM deps
+ENV ENV prod
+COPY --from=builder /pyinstall /usr/local
+
+ENTRYPOINT ["/bin/sh", "-c", "vault -l keyserver-$ENV.yaml > /etc/web-auth-ssh.conf && wa-keyserver"]
