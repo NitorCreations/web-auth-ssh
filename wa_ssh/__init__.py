@@ -23,7 +23,7 @@ def load_config(extra_confs=[]):
     configs = OrderedDict([
         ("keyserver_port", "8017"),
         ("privkey_timeout", 120),
-        ("userheader", "x-auth-name"),
+        ("userheader", "x-auth-user"),
         ("groupsheader", "x-auth-groups"),
         ("default_expiry_hours", 12)
     ])
