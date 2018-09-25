@@ -1,4 +1,4 @@
-keyserver: "https://localhost:8443"
+keyserver: "http://localhost:8443"
 keyserver_port: 8813
 access:
   - criteria:
