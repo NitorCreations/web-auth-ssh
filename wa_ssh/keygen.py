@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timedelta
-from Crypto.PublicKey import RSA
+from Cryptodome.PublicKey import RSA
 from n_vault import Vault
 
 VAULT = Vault()
