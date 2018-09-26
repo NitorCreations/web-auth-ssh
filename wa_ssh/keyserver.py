@@ -26,7 +26,7 @@ def start(extra_confs=[]):
         host = CONF["keyserver_host"]
     Handler = KeyRequestHandler
     httpd = socketserver.TCPServer((host, port), Handler)
-    print("serving at {0}:{1}".format(host, port))
+    print("Serving at {0}:{1}".format(host, port))
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

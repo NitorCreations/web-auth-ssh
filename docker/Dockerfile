@@ -1,4 +1,4 @@
-FROM python:3.6-alpine as base
+FROM python:3.7-alpine as base
 
 FROM base as deps
 
@@ -6,8 +6,8 @@ RUN apk add openssl libffi
 
 FROM deps as builder
 
-RUN apk add build-base libffi-dev openssl-dev
-RUN pip install --no-cache-dir --install-option="--prefix=/pyinstall" nitor-vault web-auth-ssh==0.8
+RUN apk add build-base libffi-dev openssl-dev && \
+    python -m pip install --no-cache-dir --install-option="--prefix=/pyinstall" -U nitor-vault web-auth-ssh==0.8
 
 FROM deps
 ENV ENV prod
