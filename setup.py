@@ -1,4 +1,4 @@
-# Copyright 2018 Pasi Niemi
+# Copyright 20.9 Pasi Niemi
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,10 +15,10 @@ import sys
 from setuptools import setup
 
 setup(name='web-auth-ssh',
-      version='0.8',
+      version='0.9',
       description='Tools for authenticating to ssh via keys given out with a web service',
       url='http://github.com/NitorCreations/web-auth-ssh',
-      download_url='https://github.com/NitorCreations/web-auth-ssh/tarball/0.8',
+      download_url='https://github.com/NitorCreations/web-auth-ssh/tarball/0.9',
       author='Pasi Niemi',
       author_email='pasi.niemi@nitor.com',
       license='Apache 2.0',
