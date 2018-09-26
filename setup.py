@@ -40,7 +40,7 @@ setup(name='web-auth-ssh',
       install_requires=[
           'pyaml',
           'argcomplete',
-          'pycrypto',
+          'pycryptodomex',
           'nitor-vault'
       ],
       tests_require=[
