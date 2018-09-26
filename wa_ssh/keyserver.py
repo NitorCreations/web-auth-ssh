@@ -47,10 +47,9 @@ class KeyRequestHandler(http.server.BaseHTTPRequestHandler):
         f = self.send_head()
         if f:
             try:
-                self.wfile.write(f)
+                self.wfile.write(f.encode())
             finally:
                 self.wfile.flush()
-                self.wfile.close()
 
     def do_HEAD(self):
         """Serve a HEAD request."""
