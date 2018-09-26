@@ -6,7 +6,7 @@ from n_vault import Vault
 VAULT = Vault()
 def _keygen():
     key = RSA.generate(4096)
-    return key.exportKey(format="PEM").encode(), key.publickey().exportKey(format="OpenSSH").encode()
+    return key.exportKey(format="PEM").decode(), key.publickey().exportKey(format="OpenSSH").decode()
 
 def get_key(host, username, expiry_hours):
     userinfo ={"privateKey": "", "publicKey": ""}
