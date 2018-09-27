@@ -12,6 +12,7 @@ import http.server
 import socketserver
 import webbrowser
 import time
+import json
 import urllib.request, urllib.parse, urllib.error
 from wa_ssh import load_config
 from requests import get
@@ -69,7 +70,7 @@ def map_user_host(extra_confs, user, host):
     mapped_user = None
     keyserver = conf["keyserver"]
     if "hosts" in conf:
-        for conf_host, host_conf in conf["hosts"]:
+        for conf_host, host_conf in conf["hosts"].items():
             matches = False
             try:
                 matches = re.compile(conf_host).match(host) is not None
