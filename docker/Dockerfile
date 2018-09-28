@@ -7,7 +7,7 @@ RUN apk add openssl libffi
 FROM deps as builder
 
 RUN apk add build-base libffi-dev openssl-dev && \
-    python -m pip install --no-cache-dir --install-option="--prefix=/pyinstall" -U nitor-vault==0.28 web-auth-ssh==0.15
+    python -m pip install --no-cache-dir --install-option="--prefix=/pyinstall" -U nitor-vault==0.28 web-auth-ssh==0.16
 
 FROM deps
 ENV ENV prod
