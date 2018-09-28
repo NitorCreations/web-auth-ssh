@@ -130,10 +130,9 @@ class KeyResponseHandler(http.server.BaseHTTPRequestHandler):
         f = self.send_head()
         if f:
             try:
-                self.wfile.write(f)
+                self.wfile.write(f.encode())
             finally:
                 self.wfile.flush()
-                self.wfile.close()
             global SERVER
             def stop_server(server):
                 server.shutdown()
