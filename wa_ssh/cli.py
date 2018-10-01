@@ -68,7 +68,9 @@ def map_user_host(extra_confs, user, host):
     conf = load_config(extra_confs=extra_confs)
     mapped_host = None
     mapped_user = None
-    keyserver = conf["keyserver"]
+    keyserver = None
+    if "keyserver" in conf:
+        keyserver = conf["keyserver"]
     if "hosts" in conf:
         for conf_host, host_conf in conf["hosts"].items():
             matches = False
@@ -87,6 +89,8 @@ def map_user_host(extra_confs, user, host):
         mapped_user = user
     if not mapped_host:
         mapped_host = host
+    if not keyserver:
+        raise Exception("Failed to find a keyserver for host " + host)
     return mapped_user, mapped_host, keyserver
 
 def get_privkey(extra_confs, host, username, keyserver):
