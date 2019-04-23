@@ -35,12 +35,6 @@ def start(extra_confs=[]):
         httpd.shutdown()
 
 class KeyRequestHandler(http.server.BaseHTTPRequestHandler):
-    def _set_headers(self, status=200, location=None):
-        self.send_response(status)
-        self.send_header('Content-type', 'text/plain')
-        if location:
-            self.send_header('Location', location)
-        self.end_headers()
 
     def do_GET(self):
         """Serve a GET request."""
@@ -56,28 +50,68 @@ class KeyRequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_head()
 
     def send_head(self):
-        path = translate_path(self.path)
-        if path[0] == "privkey":
-            redirect_port = get_redirect_port(self.path)
-            req_user = None
-            req_groups = []
-            if CONF['userheader'] in self.headers:
-                req_user = self.headers[CONF['userheader']]
-            if CONF['groupsheader'] in self.headers:
-                req_groups = self.headers[CONF['groupsheader']].split(",")
-            grant, parameters = grant_access(path[1], path[2], req_user, req_groups)
-            if not grant:
-                self._set_headers(status=403)
-                return None
-            expiry_hours = shortest_expiry(parameters)
-            priv, pub = get_key(path[1], path[2], expiry_hours)
-            location = "http://localhost:" + redirect_port + "/?" + urllib.parse.urlencode({"key": priv})
-            self._set_headers(status=302, location=location)
-            return None
-        elif path[0] == "pubkey":
-            self._set_headers()
-            priv, pub = get_key(path[1], path[2], 0)
-            return pub
+        response = get_response(self.path, self.headers)
+        self.send_response(response["statusCode"])
+        for name, key in response["headers"].items():
+            self.send_header(name, key)
+        self.end_headers()
+        if "body" in response and response["body"]:
+            return response["body"]
+
+def lambda_handler(event, context):
+    return get_response(event["path"], event["headers"])
+
+
+def get_response(path, headers):
+    ret_headers = OrderedDict()
+    ret = OrderedDict([("statusCode", 200),
+                       ("headers", ret_headers),
+                       ("isBase64Encoded", False),
+                       ("body", None)])
+    path = translate_path(path)
+    if path[0] == "privkey":
+        redirect_port = get_redirect_port(path)
+        req_user, req_groups = get_user_and_groups(headers)
+        grant, parameters = grant_access(path[1], path[2], req_user, req_groups)
+        if not grant:
+            set_headers(ret, status=403)
+            return ret
+        expiry_hours = shortest_expiry(parameters)
+        priv, pub = get_key(path[1], path[2], expiry_hours)
+        location = "http://localhost:" + redirect_port + "/?" + urllib.parse.urlencode({"key": priv})
+        set_headers(ret, status=302, location=location)
+        return ret
+    elif path[0] == "pem":
+        req_user, req_groups = get_user_and_groups(headers)
+        grant, parameters = grant_access(path[1], path[2], req_user, req_groups)
+        if not grant:
+            set_headers(ret, status=403)
+            return ret
+        expiry_hours = shortest_expiry(parameters)
+        priv, pub = get_key(path[1], path[2], expiry_hours)
+        set_headers(ret, content_type="application/x-pem-file")
+        ret["body"] = priv
+    elif path[0] == "pubkey":
+        set_headers(ret, file_name="authorized_keys")
+        priv, ret["body"] = get_key(path[1], path[2], 0)
+        return ret
+
+def get_user_and_groups(headers):
+    req_user = None
+    req_groups = []
+    if CONF['userheader'] in headers:
+        req_user = headers[CONF['userheader']]
+    if CONF['groupsheader'] in headers:
+        req_groups = headers[CONF['groupsheader']].split(",")
+    return req_user, req_groups
+
+def set_headers(response, status=200, location=None, content_type="text/plain", file_name=None):
+    response["statusCode"] = status
+    response["headers"]["content-type"] = content_type
+    if location:
+        response["headers"]["location"] = location
+    if file_name:
+        response["headers"]["content-disposition"] = "attachment; filename=" + file_name
 
 def translate_path(path):
     url = urlparse(path)
